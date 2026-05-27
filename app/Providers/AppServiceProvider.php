@@ -5,10 +5,6 @@ namespace App\Providers;
 use App\Contracts\PaystackClientInterface;
 use App\Services\Paystack\PaystackHttpClient;
 use App\Services\Paystack\PaystackMockClient;
-use Dedoc\Scramble\OpenApiContext;
-use Dedoc\Scramble\Scramble;
-use Dedoc\Scramble\Support\Generator\OpenApi;
-use Dedoc\Scramble\Support\Generator\SecurityScheme;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -46,12 +42,14 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(60)->by((string) ($request->user()?->id ?: $request->ip()));
         });
 
-        Scramble::afterOpenApiGenerated(function (OpenApi $openApi, OpenApiContext $context): void {
-            $openApi->secure(
-                SecurityScheme::http('bearer')
-                    ->as('sanctum')
-                    ->setDescription('Laravel Sanctum personal access token. Obtain a token from `POST /api/auth/login` (or `POST /api/auth/register`), then use `Authorization: Bearer {token}`.')
-            );
-        });
+        if (class_exists(\Dedoc\Scramble\Scramble::class)) {
+            \Dedoc\Scramble\Scramble::afterOpenApiGenerated(function (\Dedoc\Scramble\Support\Generator\OpenApi $openApi, \Dedoc\Scramble\OpenApiContext $context): void {
+                $openApi->secure(
+                    \Dedoc\Scramble\Support\Generator\SecurityScheme::http('bearer')
+                        ->as('sanctum')
+                        ->setDescription('Laravel Sanctum personal access token. Obtain a token from `POST /api/auth/login` (or `POST /api/auth/register`), then use `Authorization: Bearer {token}`.')
+                );
+            });
+        }
     }
 }
