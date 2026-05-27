@@ -64,3 +64,65 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+## Deploying to Render
+
+This backend ships with a minimal `Dockerfile` and `docker/start.sh` so it can be deployed to [Render](https://render.com) as a Docker-based Web Service.
+
+### Service setup
+
+1. In the Render dashboard, create a new **Web Service** from this repository.
+2. Set the **Root Directory** to `konora-backend` so Render builds from this folder.
+3. Choose **Docker** as the runtime. Render will detect the `Dockerfile` automatically.
+4. Leave the **Build Command** empty and let the Dockerfile handle the build. The container starts via `docker/start.sh`, which binds to Render's `$PORT`.
+
+### Required environment variables
+
+Set these in the Render service's **Environment** tab:
+
+- `APP_NAME` — display name, e.g. `Konora`.
+- `APP_ENV=production`
+- `APP_DEBUG=false`
+- `APP_KEY` — generate locally with `php artisan key:generate --show` and paste the value.
+- `APP_URL` — the public URL Render assigns (e.g. `https://konora-backend.onrender.com`).
+- `LOG_CHANNEL=stack`
+- `FRONTEND_URL` — the deployed frontend URL (used by Sanctum and Paystack callback links).
+
+### Database
+
+Provision a managed **PostgreSQL** instance on Render and link these variables from its connection info:
+
+- `DB_CONNECTION=pgsql`
+- `DB_HOST`
+- `DB_PORT=5432`
+- `DB_DATABASE`
+- `DB_USERNAME`
+- `DB_PASSWORD`
+
+If you instead want to use SQLite for a quick smoke test, set `DB_CONNECTION=sqlite` and `DB_DATABASE=/var/www/html/database/database.sqlite`. Note that SQLite data does not persist across deploys on Render's free disk-less services.
+
+### Sessions, cache, and queue
+
+Render's filesystem is ephemeral, so prefer database-backed drivers (already the defaults in `.env.example`):
+
+- `SESSION_DRIVER=database`
+- `CACHE_STORE=database`
+- `QUEUE_CONNECTION=database`
+
+### Paystack
+
+- `PAYSTACK_SECRET_KEY`
+- `PAYSTACK_PUBLIC_KEY`
+- `PAYSTACK_CALLBACK_URL` — e.g. `https://your-frontend.example.com/checkout/callback`
+- `PAYSTACK_BASE_URL=https://api.paystack.co`
+- `PAYSTACK_MOCK=false` in production.
+
+### Startup behaviour
+
+`docker/start.sh` runs on every deploy and:
+
+- Ensures Laravel's `storage/` and `bootstrap/cache/` directories exist and are writable.
+- Caches config/routes/views when `APP_ENV=production`.
+- Runs `php artisan migrate --force` (disable with `RUN_MIGRATIONS=false`).
+- Creates the public storage symlink (disable with `RUN_STORAGE_LINK=false`).
+- Serves the app via `php artisan serve` on `0.0.0.0:$PORT`.
